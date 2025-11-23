@@ -30,12 +30,12 @@ hundred lines of code. Unfortunately bencode is not particularly
 readable, so examples in this document will show messages in JSON.
 
 Every message sent by the client must have an `op` field, for
-operation.  Every message except the first `clone` request must have a
+operation.  Every message except the first `clone` request should have a
 `session` field indicating which session it's part of.
 
 Every message sent by the client is a request. Requests can have one
 or more response messages associated with them. Because a request can
-have many responses, every request should be considered active until a
+have many responses, every request must be considered active until a
 response is received with a `status` field which is a list that
 contains the string `done`. Requests may remain active for a long time
 before completing, so the responses should be handled asynchronously.
@@ -77,7 +77,7 @@ client sends a message with the `clone` op:
 All fields except `op` are optional. Client information may be used
 for debugging purposes.
 
-The response will contain a new `new-session` id which should be
+The response should contain a new `new-session` id which should be
 included as the `session` for all subsequent requests:
 
 ```json
@@ -89,7 +89,7 @@ included as the `session` for all subsequent requests:
 
 The server should support multiple sessions on a single socket.
 
-[why is this an explicit op? why not just automatically register a
+[TODO: why is this an explicit op? why not just automatically register a
 session any time a request comes in without a session attached?]
 
 ### `eval` op
@@ -105,8 +105,9 @@ field contains the code to be run.
  "code": "99 + 121"}
 ```
 
-This should normally return a message with a `value` field containing
-a string representation of the return value.
+In the event that the code runs successfully this should return a
+message with a `value` field containing a string representation of the
+return value.
 
 ```json
 // client <- server
@@ -144,7 +145,7 @@ message should include an `ex` field instead of `value`. The format of
 this field will vary depending on the way the language in question
 represents errors.
 
-[should we go into detail about how to send stack traces?]
+[TODO: should we go into detail about how to send stack traces?]
 
 ```json
 // client -> server
@@ -165,12 +166,12 @@ code in question should be treated as if it came from a given file. If
 this is not an absolute path, it should be interpreted as being
 relative to the directory from which the server was started. The
 `line` and `column` fields may include numbers indicating where in the
-file the code was from. Lines start at 1 and columns start at 0. These
-fields typically do not affect how the code is run, but they may help
-improve stack traces if there is an error.
+file the code was from. Lines should start at 1 and columns start
+at 0. These fields typically do not affect how the code is run, but
+they may help improve stack traces if there is an error.
 
 In some languages, evaluation always happens in the context of a
-specific namespace or module. For those languages, an `ns` field can
+specific namespace or module. For those languages, an `ns` field may
 be included in the request which indicates the namespace to evaluate
 the code in.
 
@@ -189,7 +190,7 @@ the code in.
 ### `stdin` op
 
 In the case that evaluated code tries to read input from standard in,
-the server will send a message to the client with a status of
+the server should send a message to the client with a status of
 `need-input`. When this happens, the client should accept input and
 send what it receives using the `stdin` operation.
 
@@ -224,7 +225,7 @@ send what it receives using the `stdin` operation.
 ### `describe` op
 
 If a client wishes to know which operations are supported by a server,
-it can query with the `describe` op, which takes no other parameters:
+it may query with the `describe` op, which takes no other parameters:
 
 ```json
 // client -> server
@@ -338,10 +339,12 @@ If the `sym` is not found, then the `info` field should be omitted.
 ### `load-file` op
 
 A client may instruct the server to load an entire file instead of
-sending its contents across the session. It may send a request with a
-`load-file` op which has `file-path` indicating the path to the file
-to load. Depending on the server, in some cases this may result in the
-loaded code having better stack trace information.
+sending its contents across the session. This can be especially useful
+if the server is running on a different machine from the client. It
+may send a request with a `load-file` op which has `file-path`
+indicating the path to the file to load. Depending on the server, in
+some cases this may result in the loaded code having better stack
+trace information.
 
 If `file-path` is not an absolute path, it should be interpreted as
 being relative to the directory from which the server was started.
@@ -355,7 +358,7 @@ being relative to the directory from which the server was started.
 ```
 
 The response should be interpreted similarly to the `eval` op: a
-`value` or `err` may be included, but omitting both is also allowed.
+`value` or `ex` may be included, but omitting both is also allowed.
 It may also include `out` and/or `err`.
 
 ```json
@@ -374,9 +377,12 @@ longer recommended.
 
 A client may request completions for a given input using the
 `completions` op. The `prefix` field should be a string indicating the
-input to be completed. For servers where completions may be specific
-to a module or namespace context, an `ns` field may also be included
-indicating this.
+input to be completed. 
+
+For servers where completions may be specific to a module or namespace
+context, an `ns` field may also be included indicating this. The
+client may also include `file`, `line`, and `column` which the server
+may use to get better context to provide completions.
 
 ```json
 // client -> server
@@ -387,8 +393,9 @@ indicating this.
 ```
 
 The response should contain a `completions` field with a list of
-completion candidates: dictionaries with fields `candidate` with the
-full text to complete, and `type` describing the candidate's type.
+completion candidates: dictionaries with a `candidate` field with the
+full text to complete, and optionally a `type` field describing the
+candidate's type.
 
 ```json
 // client <- server
@@ -428,9 +435,9 @@ should remain running to accept sessions from other clients.
 ## Extension operations
 
 Each server may include support for additional ops that are not part
-of the protocol. Support for these ops should be indicated by
-including them in the `ops` from the `describe` op, so clients can
-discover them dynamically.
+of this protocol specification. Support for these ops should be
+indicated by including them in the `ops` from the `describe` op so
+clients can discover them dynamically.
 
 If your client wants to perform some operation that is not part of the
 spec and it only needs to support a single language, it can send the
@@ -439,13 +446,13 @@ indeed, many clients have done this. For example, earlier versions of
 the nREPL protocol did not have a `completions` operation, and so some
 clients sent Clojure code to calculate completions and parsed the
 `value` reply to determine what to display to the user. However, this
-is not an ideal solution; it creates incompatibilities across
-languages and puts server code in the client.
+is discouraged as it creates incompatibilities across languages and
+puts functionality that belongs to the server in the client.
 
-Rather than sending code across the wire for an op, you may propose a
-draft extension to the nREPL protocol so that clients can standardize
-on it instead. Future versions of this document may link to a list of
-proposed extensions.
+Rather than sending code across the wire for an op, implementers may
+propose a draft extension to the nREPL protocol so that clients can
+standardize on it instead. Future versions of this document may link
+to a list of proposed extensions.
 
 [1]: https://www.oilshell.org/blog/2022/02/diagrams.html
 [2]: https://langserver.org
