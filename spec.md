@@ -30,8 +30,8 @@ hundred lines of code. Unfortunately bencode is not particularly
 readable, so examples in this document will show messages in JSON.
 
 Every message sent by the client must have an `op` field, for
-operation.  Every message except the first must have a `session` field
-indicating which session it's part of.
+operation.  Every message except the first `clone` request must have a
+`session` field indicating which session it's part of.
 
 Every message sent by the client is a request. Requests can have one
 or more response messages associated with them. Because a request can
@@ -46,7 +46,14 @@ features of the language, it may be possible for multiple requests to
 overlap.
 
 In this document, the examples use UUID strings for `session` and
-`id`, but the only requirement is that they are unique strings.
+`id`, but the only requirement is that they are strings that are
+unique to the life of the specific server process and all clients
+connecting to it.
+
+When an error is encountered in the nREPL server itself (rather than
+in the code that the client has sent) it should send a response with
+`err` containing a message describing the error, and a `status`
+containing `server-error` as well as `done`.
 
 ## Required Operations
 
@@ -79,6 +86,8 @@ included as the `session` for all subsequent requests:
  "id": "01e0bbed-2819-41b8-9642-4c16a79f7efc",
  "status": ["done"]}
 ```
+
+The server should support multiple sessions on a single socket.
 
 [why is this an explicit op? why not just automatically register a
 session any time a request comes in without a session attached?]
@@ -407,11 +416,14 @@ A client may send a `close` op to terminate the session.
  "status": ["done"]}
 ```
 
-The server should close the socket after the reply is sent, if the
-session is connected over a socket. The client may close the socket to
-achieve the same effect. If the server was communicating over stdio,
-it may exit, but if it was communicating over a socket, it should
-remain running to accept sessions from other clients.
+The server may close the socket after the reply is sent, if the
+session is connected over a socket and the socket is not being used
+for other sessions. The client may close the socket to achieve the
+same effect. 
+
+If the server was communicating over stdio, it may exit if no other
+sessions are active, but if it was communicating over a socket, it
+should remain running to accept sessions from other clients.
 
 ## Extension operations
 
