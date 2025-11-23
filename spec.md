@@ -238,13 +238,17 @@ nREPL specification.
 // client <- server
 {"session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "5d90576e-b5e1-4499-a43d-c75c60b579ff",
- "ops": ["clone", "eval", "stdin", "describe", "load-file"],
+ "ops": ["clone", "eval", "stdin", "describe", "load-file", "sandbox"],
  "features": {"encodings": ["bencode", "json"],
               "transports": ["socket", "stdio"]},
  "versions": {"nrepl": "0.1.0",
               "lua": "5.4"},
  "status": ["done"]}
 ```
+
+Compatibility note: previous versions of the protocol had `ops`
+defined as a dictionary with the operation names as the keys and an
+unspecified dictionary as the values. This is no longer recommended.
 
 [this one could really be required; it adds very little difficulty]
 
@@ -290,20 +294,34 @@ information for functions and other values, the client may send a
 {"op": "lookup",
  "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "d30f8bb9-4e6e-48a8-b0f8-58adf5b353a7",
- "sym": "coroutine.create"}
+ "sym": "mymodule.reloader"}
 ```
 
 The response will vary from one server to another due to language
 variation, but all data should be under `info`. If documentation is
 available, it should be under `doc`, and argument lists for functions
-should be under `arglist`:
+should be under `arglist`.
+
+If the definition of the requested value can be traced to a file, then
+a `file` and `line` field should be included. A `column` may also be
+provided. Line numbers are counted from 1, and column numbers are
+counted from 0. If it was found inside an archive, for example a zip
+file or a jar file, it should also include an `archive` field
+containing a path to the archive file. If `archive` is present, then
+`file` is interpreted as being inside the archive; otherwise it is
+either an absolute path or interpreted as being relative to the
+directory in which the server was started.
 
 ```json
 // client <- server
 {"session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "78f78353-c185-4211-a868-b19eaa85e054",
- "info": {"doc": "Creates a new coroutine, with body `f`.",
-          "arglist": ["f"]},
+ "info": {"doc": "Reloads the configuration.",
+          "arglist": ["path", "restart"],
+          "file": "src/mymodule.lua",
+          "line": 27,
+          "column": 2,
+          "archive": "lib/extras.zip"},
  "status": ["done"]}
 ```
 
@@ -371,40 +389,6 @@ full text to complete, and `type` describing the candidate's type.
  "completions": [{"candidate": "math.sqrt", "type": "function"},
                  {"candidate": "math.sin", "type": "function"},
                  {"candidate": "math.sinh", "type": "function"}],
- "status": ["done"]}
-```
-
-### `find` op
-
-Clients may query the server to find the location where a given value
-is defined using the `find` op with a `target` field containing the
-value being found.
-
-```json
-// client -> server
-{"op": "find",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "99746b4f-a68e-4100-a56f-bb6fe63b0767",
- "target": "mymodule.reloader"}
-```
-
-If the value is found, the response should contain a `file` and `line`
-field. A `column` may also be provided. Line numbers are counted from
-1, and column numbers are counted from 0. If it was found inside an
-archive, for example a zip file or a jar file, it should also include
-an `archive` field containing a path to the archive file. If `archive`
-is present, then `file` is interpreted as being inside the archive;
-otherwise it is either an absolute path or interpreted as being
-relative to the directory in which the server was started.
-
-```json
-// client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "b5c90973-bf4f-4626-a825-e493eed4759a",
- "file": "src/mymodule.lua",
- "line": 27,
- "column": 2,
- "archive": "lib/extras.zip",
  "status": ["done"]}
 ```
 
