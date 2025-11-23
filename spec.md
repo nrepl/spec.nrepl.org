@@ -50,8 +50,9 @@ In this document, the examples use UUID strings for `session` and
 
 ## Required Operations
 
-The absolute minimum a client or server needs to support are the first
-three ops, `clone`, `eval`, and `stdin`.
+The absolute minimum a server needs to support are the first four ops,
+`clone`, `eval`, `stdin`, and `describe`. Clients may support
+`describe` but this is not required.
 
 ### `clone` op
 
@@ -211,12 +212,6 @@ send what it receives using the `stdin` operation.
 
 ```
 
-## Optional operations
-
-Servers may choose to support these if they make sense. If a server
-receives a request with an `op` it does not recognize, it must reply
-with a message whose `status` contains `unknown-op` along with `done`.
-
 ### `describe` op
 
 If a client wishes to know which operations are supported by a server,
@@ -250,7 +245,11 @@ Compatibility note: previous versions of the protocol had `ops`
 defined as a dictionary with the operation names as the keys and an
 unspecified dictionary as the values. This is no longer recommended.
 
-[this one could really be required; it adds very little difficulty]
+## Optional operations
+
+Servers may choose to support these if they make sense. If a server
+receives a request with an `op` it does not recognize, it must reply
+with a message whose `status` contains `unknown-op` along with `done`.
 
 ### `interrupt` op
 
