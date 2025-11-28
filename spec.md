@@ -29,9 +29,7 @@ deal easier to implement than JSON; usually it can be done in under a
 hundred lines of code. Unfortunately bencode is not particularly
 readable, so examples in this document will show messages in JSON.
 
-Every message sent by the client must have an `op` field, for
-operation.  Every message except the first `clone` request should have a
-`session` field indicating which session it's part of.
+Every message sent by the client must have an `op` field, for operation.
 
 Every message sent by the client is a request. Requests can have one
 or more response messages associated with them. Because a request can
@@ -41,14 +39,11 @@ contains the string `done`. Requests may remain active for a long time
 before completing, so the responses should be handled asynchronously.
 
 Requests should have an `id` field, and responses to that request
-should also include the same `id`. Depending on the concurrency
-features of the language, it may be possible for multiple requests to
-overlap.
+should also include the same `id`.
 
-In this document, the examples use UUID strings for `session` and
-`id`, but the only requirement is that they are strings that are
-unique to the life of the specific server process and all clients
-connecting to it.
+In this document, the examples use UUID `id` strings, but the only
+requirement is that they are strings that are unique to the life of
+the specific server process and all clients connecting to it.
 
 When an error is encountered in the nREPL server itself (rather than
 in the code that the client has sent) it should send a response with
@@ -57,62 +52,60 @@ containing `server-error` as well as `done`.
 
 ## Required Operations
 
-The absolute minimum a server needs to support are the first four ops,
-`clone`, `eval`, `stdin`, and `describe`. Clients may support
-`describe` but this is not required.
+The absolute minimum a server needs to support are the first three ops,
+`describe`, `eval`, and `stdin`.
 
-### `clone` op
+### `describe` op
 
-Messages are exchanged in sessions. In order to start a session, the
-client sends a message with the `clone` op:
+The client should send a `describe` request upon connecting so it
+knows which ops the server supports. Servers should not require clients
+to make this request first.
 
-```json
+```js
 // client -> server
-{"op": "clone",
- "id": "01e0bbed-2819-41b8-9642-4c16a79f7efc",
- "client-name": "nREPL documentation demo",
- "client-version" "1.0.0"}
+{"op": "describe",
+ "id": "5d90576e-b5e1-4499-a43d-c75c60b579ff"
+ "client": "nREPL documentation demo 1.0.0"}
 ```
 
-All fields except `op` are optional. Client information may be used
-for debugging purposes.
+The `client` field may be used for debugging purposes, but the server
+should not treat the client differently based on its name or version.
 
-The response should contain a new `new-session` id which should be
-included as the `session` for all subsequent requests:
+The response must have a list of `ops` supported by the server. It may
+also have a dictionary of `versions` for debugging purposes as well.
 
-```json
+```js
 // client <- server
-{"new-session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "01e0bbed-2819-41b8-9642-4c16a79f7efc",
+{"id": "5d90576e-b5e1-4499-a43d-c75c60b579ff",
+ "ops": ["clone", "eval", "stdin", "describe", "load-file", "sandbox"],
+ "versions": {"nrepl": "0.1.0",
+              "lua": "5.4"},
  "status": ["done"]}
 ```
 
-The server should support multiple sessions on a single socket.
-
-[TODO: why is this an explicit op? why not just automatically register a
-session any time a request comes in without a session attached?]
+Compatibility note: previous versions of the protocol had `ops`
+defined as a dictionary with the operation names as the keys and an
+unspecified dictionary as the values. This is no longer recommended.
 
 ### `eval` op
 
 This is the main workhorse operation where code gets run. The `code`
 field contains the code to be run.
 
-```json
+```js
 // client -> server
 {"op": "eval",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "297a1dc1-e8ea-4a71-ac58-977841a301f4",
  "code": "99 + 121"}
 ```
 
 In the event that the code runs successfully this should return a
 message with a `value` field containing a string representation of the
-return value.
+return value or values.
 
-```json
+```js
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "297a1dc1-e8ea-4a71-ac58-977841a301f4",
+{"id": "297a1dc1-e8ea-4a71-ac58-977841a301f4",
  "value": "220",
  "status": ["done"]}
 ```
@@ -125,38 +118,38 @@ message. The client should display these to the user in a way that
 makes it clear they are part of the session; for example, in the editor
 console right below the code was entered.
 
-```json
+```js
 // client -> server
 {"op": "eval",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "35e53d19-9f4a-4329-a820-d71481fdfec1",
  "code": "print('hello, world')"}
 
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "35e53d19-9f4a-4329-a820-d71481fdfec1",
+{"id": "35e53d19-9f4a-4329-a820-d71481fdfec1",
  "value": "nil",
  "out": "hello world",
  "status": ["done"]}
 ```
+
+The server should make an effort to send `out` messages with an `id`
+field where possible; however, it may be unavoidable to have some
+output which is not tied to a specific request, so clients should be
+prepared for output to arrive which is missing an `id` field or
+contains an `id` for a request that is already considered done.
 
 In the case that evaluated code encounters an error, the response
 message should include an `ex` field instead of `value`. The format of
 this field will vary depending on the way the language in question
 represents errors.
 
-[TODO: should we go into detail about how to send stack traces?]
-
-```json
+```js
 // client -> server
 {"op": "eval",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "b9616f31-9fbd-4a76-b7d6-ab98eb9f7641",
  "code": "client.connect(config.hostname, config.port)"}
 
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "b9616f31-9fbd-4a76-b7d6-ab98eb9f7641",
+{"id": "b9616f31-9fbd-4a76-b7d6-ab98eb9f7641",
  "ex": "connection refused",
  "status": ["done"]}
 ```
@@ -175,10 +168,9 @@ specific namespace or module. For those languages, an `ns` field may
 be included in the request which indicates the namespace to evaluate
 the code in.
 
-```json
+```js
 // client -> server
 {"op": "eval",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "2102c017-2ff5-4ddd-9067-a54ec62fc0c8",
  "file": "src/display/avatar.lua",
  "line": 21,
@@ -194,70 +186,32 @@ the server should send a message to the client with a status of
 `need-input`. When this happens, the client should accept input and
 send what it receives using the `stdin` operation.
 
-```json
+```js
 // client -> server
 {"op": "eval",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "78f78353-c185-4211-a868-b19eaa85e054",
  "code": "subsystem.activate()"}
 
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "78f78353-c185-4211-a868-b19eaa85e054",
+{"id": "78f78353-c185-4211-a868-b19eaa85e054",
  "out": "Username: ",
  "status": ["need-input"]}
 
 // client -> server
 {"op": "stdin",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "78f78353-c185-4211-a868-b19eaa85e054",
  "stdin": "gorkon"}
 
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "78f78353-c185-4211-a868-b19eaa85e054",
+{"id": "78f78353-c185-4211-a868-b19eaa85e054",
  "output": "Activated.\n",
  "value": "nil",
  "status": ["done"]}
-
 ```
-
-### `describe` op
-
-If a client wishes to know which operations are supported by a server,
-it may query with the `describe` op, which takes no other parameters:
-
-```json
-// client -> server
-{"op": "describe",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "5d90576e-b5e1-4499-a43d-c75c60b579ff"}
-```
-
-The response must have a list of `ops` supported by the server. It may
-also have a dictionary of `versions` for debugging purposes as well as
-a dictionary of `features` describing additional extensions beyond the
-nREPL specification.
-
-```json
-// client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "5d90576e-b5e1-4499-a43d-c75c60b579ff",
- "ops": ["clone", "eval", "stdin", "describe", "load-file", "sandbox"],
- "features": {"encodings": ["bencode", "json"],
-              "transports": ["socket", "stdio"]},
- "versions": {"nrepl": "0.1.0",
-              "lua": "5.4"},
- "status": ["done"]}
-```
-
-Compatibility note: previous versions of the protocol had `ops`
-defined as a dictionary with the operation names as the keys and an
-unspecified dictionary as the values. This is no longer recommended.
 
 ## Optional operations
 
-Servers may choose to support these if they make sense. If a server
+Clients and servers may choose to support these if they make sense. If a server
 receives a request with an `op` it does not recognize, it must reply
 with a message whose `status` contains `unknown-op` along with `done`.
 
@@ -269,26 +223,23 @@ send an `interrupt` op. Requests may optionally contain an
 be interrupted. If this is omitted, it interrupts the most recent
 request of the current session.
 
-```json
+```js
 // client -> server
 {"op": "eval",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "71629c7e-6c73-4dea-85f8-102d4b64c07f",
  "code": "calculate_matrix()"}
 
 // client -> server
 {"op": "interrupt",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "71629c7e-6c73-4dea-85f8-102d4b64c07f""}
 ```
 
 The reply to this request should be a message with statuses
 `interrupted` and `done` both:
 
-```json
+```js
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "78f78353-c185-4211-a868-b19eaa85e054",
+{"id": "78f78353-c185-4211-a868-b19eaa85e054",
  "status": ["interrupted" "done"]}
 ```
 
@@ -298,10 +249,9 @@ For servers that support providing documentation and reflective
 information for functions and other values, the client may send a
 `lookup` op containing a `sym` field for the item being looked up.
 
-```json
+```js
 // client -> server
 {"op": "lookup",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "d30f8bb9-4e6e-48a8-b0f8-58adf5b353a7",
  "sym": "mymodule.reloader"}
 ```
@@ -321,10 +271,9 @@ containing a path to the archive file. If `archive` is present, then
 either an absolute path or interpreted as being relative to the
 directory in which the server was started.
 
-```json
+```js
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "78f78353-c185-4211-a868-b19eaa85e054",
+{"id": "78f78353-c185-4211-a868-b19eaa85e054",
  "info": {"doc": "Reloads the configuration.",
           "arglist": ["path", "restart"],
           "file": "src/mymodule.lua",
@@ -339,7 +288,7 @@ If the `sym` is not found, then the `info` field should be omitted.
 ### `load-file` op
 
 A client may instruct the server to load an entire file instead of
-sending its contents across the session. This can be especially useful
+sending its contents across the wire. This can be especially useful
 if the server is running on a different machine from the client. It
 may send a request with a `load-file` op which has `file-path`
 indicating the path to the file to load. Depending on the server, in
@@ -349,10 +298,9 @@ trace information.
 If `file-path` is not an absolute path, it should be interpreted as
 being relative to the directory from which the server was started.
 
-```json
+```js
 // client -> server
 {"op": "load-file",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "b5c90973-bf4f-4626-a825-e493eed4759a",
  "file-path": "src/utils.lua"}
 ```
@@ -361,10 +309,9 @@ The response should be interpreted similarly to the `eval` op: a
 `value` or `ex` may be included, but omitting both is also allowed.
 It may also include `out` and/or `err`.
 
-```json
+```js
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "b5c90973-bf4f-4626-a825-e493eed4759a",
+{"id": "b5c90973-bf4f-4626-a825-e493eed4759a",
  "value": "{debug=#<function: 0x5618eb88b180>}",
  "status": ["done"]}
 ```
@@ -384,10 +331,9 @@ context, an `ns` field may also be included indicating this. The
 client may also include `file`, `line`, and `column` which the server
 may use to get better context to provide completions.
 
-```json
+```js
 // client -> server
 {"op": "completions",
- "session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "d862f516-a232-4e01-a4c1-1afb42e04637",
  "prefix": "math.s"}
 ```
@@ -397,13 +343,43 @@ completion candidates: dictionaries with a `candidate` field with the
 full text to complete, and optionally a `type` field describing the
 candidate's type.
 
-```json
+```js
 // client <- server
-{"session": "afd3c88e-707f-4169-a265-892f29476333",
- "id": "d862f516-a232-4e01-a4c1-1afb42e04637",
+{"id": "d862f516-a232-4e01-a4c1-1afb42e04637",
  "completions": [{"candidate": "math.sqrt", "type": "function"},
                  {"candidate": "math.sin", "type": "function"},
                  {"candidate": "math.sinh", "type": "function"}],
+ "status": ["done"]}
+```
+
+### `clone` op
+
+Some servers may wish to implement **sessions**. Requests and
+responses may be sent inside a session, which has two effects: all
+requests within one session are run in serial; that is, no request can
+be accepted until the previous one has completed. In addition,
+thread-local state (if applicable) should be kept consistent across a
+session.
+
+In order to start a session, the client sends a message with the `clone` op:
+
+```js
+// client -> server
+{"op": "clone",
+ "id": "01e0bbed-2819-41b8-9642-4c16a79f7efc"}
+```
+
+If the request contains a `session` field, then that session is cloned
+to make the requested session and all its state is passed on; if not
+then the new session is not connected to an existing one.
+
+The response should contain a new `new-session` id which should be
+included as the `session` for all subsequent requests:
+
+```js
+// client <- server
+{"new-session": "afd3c88e-707f-4169-a265-892f29476333",
+ "id": "01e0bbed-2819-41b8-9642-4c16a79f7efc",
  "status": ["done"]}
 ```
 
@@ -411,7 +387,7 @@ candidate's type.
 
 A client may send a `close` op to terminate the session.
 
-```json
+```js
 // client -> server
 {"op": "close",
  "session": "afd3c88e-707f-4169-a265-892f29476333",
