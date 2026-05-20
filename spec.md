@@ -14,12 +14,13 @@ of this writing most nREPL users are Clojure users. But the design of
 the protocol is language-agnostic and can be applied to any language
 that can evaluate code at runtime.
 
-This document is an in-progress draft describing version 0.1.0 of the
-nREPL protocol.
+> **Note:** This document is an in-progress draft of version 1.0.0 of
+> the nREPL protocol. Open design questions are tracked in the [issue
+> tracker][3]; feedback and contributions are very welcome.
 
 ## Protocol Description
 
-The nREPL protocol operates by default by exchanging [bencoded][3]
+The nREPL protocol operates by default by exchanging [bencoded][4]
 messages over a socket. Various implementations may also offer other
 encodings and transports, such as JSON over stdio, but these are not
 standardized.
@@ -432,4 +433,5 @@ to a list of proposed extensions.
 
 [1]: https://www.oilshell.org/blog/2022/02/diagrams.html
 [2]: https://langserver.org
-[3]: https://wiki.theory.org/index.php/BitTorrentSpecification#Bencoding
+[3]: https://github.com/nrepl/spec.nrepl.org/issues
+[4]: https://wiki.theory.org/index.php/BitTorrentSpecification#Bencoding
