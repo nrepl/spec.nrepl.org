@@ -64,7 +64,7 @@ to make this request first.
 ```js
 // client -> server
 {"op": "describe",
- "id": "5d90576e-b5e1-4499-a43d-c75c60b579ff"
+ "id": "5d90576e-b5e1-4499-a43d-c75c60b579ff",
  "client": "nREPL documentation demo 1.0.0"}
 ```
 
@@ -231,7 +231,7 @@ request of the current session.
 
 // client -> server
 {"op": "interrupt",
- "id": "71629c7e-6c73-4dea-85f8-102d4b64c07f""}
+ "id": "71629c7e-6c73-4dea-85f8-102d4b64c07f"}
 ```
 
 The reply to this request should be a message with statuses
@@ -240,7 +240,7 @@ The reply to this request should be a message with statuses
 ```js
 // client <- server
 {"id": "78f78353-c185-4211-a868-b19eaa85e054",
- "status": ["interrupted" "done"]}
+ "status": ["interrupted", "done"]}
 ```
 
 ### `lookup` op
