@@ -127,7 +127,7 @@ console right below the code was entered.
 // client <- server
 {"id": "35e53d19-9f4a-4329-a820-d71481fdfec1",
  "value": "nil",
- "out": "hello world",
+ "out": "hello, world",
  "status": ["done"]}
 ```
 
@@ -204,7 +204,7 @@ send what it receives using the `stdin` operation.
 
 // client <- server
 {"id": "78f78353-c185-4211-a868-b19eaa85e054",
- "output": "Activated.\n",
+ "out": "Activated.\n",
  "value": "nil",
  "status": ["done"]}
 ```
@@ -239,7 +239,7 @@ The reply to this request should be a message with statuses
 
 ```js
 // client <- server
-{"id": "78f78353-c185-4211-a868-b19eaa85e054",
+{"id": "71629c7e-6c73-4dea-85f8-102d4b64c07f",
  "status": ["interrupted", "done"]}
 ```
 
@@ -273,7 +273,7 @@ directory in which the server was started.
 
 ```js
 // client <- server
-{"id": "78f78353-c185-4211-a868-b19eaa85e054",
+{"id": "d30f8bb9-4e6e-48a8-b0f8-58adf5b353a7",
  "info": {"doc": "Reloads the configuration.",
           "arglist": ["path", "restart"],
           "file": "src/mymodule.lua",
