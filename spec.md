@@ -324,7 +324,7 @@ longer recommended.
 
 A client may request completions for a given input using the
 `completions` op. The `prefix` field should be a string indicating the
-input to be completed. 
+input to be completed.
 
 For servers where completions may be specific to a module or namespace
 context, an `ns` field may also be included indicating this. The
@@ -402,7 +402,7 @@ A client may send a `close` op to terminate the session.
 The server may close the socket after the reply is sent, if the
 session is connected over a socket and the socket is not being used
 for other sessions. The client may close the socket to achieve the
-same effect. 
+same effect.
 
 If the server was communicating over stdio, it may exit if no other
 sessions are active, but if it was communicating over a socket, it
