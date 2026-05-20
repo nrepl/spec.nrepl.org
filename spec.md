@@ -79,7 +79,7 @@ also have a dictionary of `versions` for debugging purposes as well.
 // client <- server
 {"id": "5d90576e-b5e1-4499-a43d-c75c60b579ff",
  "ops": ["clone", "eval", "stdin", "describe", "load-file", "sandbox"],
- "versions": {"nrepl": "0.1.0",
+ "versions": {"nrepl": "1.0.0",
               "lua": "5.4"},
  "status": ["done"]}
 ```
