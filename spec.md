@@ -52,8 +52,8 @@ containing `server-error` as well as `done`.
 
 ## Required Operations
 
-The absolute minimum a server needs to support are the first three ops,
-`describe`, `eval`, and `stdin`.
+The first three ops, `describe`, `eval`, and `stdin`, are the absolute
+minimum a server needs to support.
 
 ### `describe` op
 
@@ -116,7 +116,7 @@ respectively. These may be sent in a separate message sent before the
 "done" message that has `value` in it, or they may be present in that
 message. The client should display these to the user in a way that
 makes it clear they are part of the session; for example, in the editor
-console right below the code was entered.
+console right below where the code was entered.
 
 ```js
 // client -> server
@@ -181,7 +181,7 @@ the code in.
 
 ### `stdin` op
 
-In the case that evaluated code tries to read input from standard in,
+In the case that evaluated code tries to read input from stdin,
 the server should send a message to the client with a status of
 `need-input`. When this happens, the client should accept input and
 send what it receives using the `stdin` operation.
