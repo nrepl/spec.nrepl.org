@@ -14,9 +14,12 @@ of this writing most nREPL users are Clojure users. But the design of
 the protocol is language-agnostic and can be applied to any language
 that can evaluate code at runtime.
 
-> **Note:** This document is an in-progress draft of version 1.0.0 of
-> the nREPL protocol. Open design questions are tracked in the [issue
-> tracker][3]; feedback and contributions are very welcome.
+<div class="draft-notice">
+<strong>Draft.</strong> This document is an in-progress draft of version 1.0.0
+of the nREPL protocol. Open design questions are tracked in the
+<a href="https://github.com/nrepl/spec.nrepl.org/issues">issue tracker</a>;
+feedback and contributions are very welcome.
+</div>
 
 ## Protocol Description
 
