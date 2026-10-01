@@ -142,9 +142,10 @@ prepared for output to arrive which is missing an `id` field or
 contains an `id` for a request that is already considered done.
 
 In the case that evaluated code encounters an error, the response
-message should include an `ex` field instead of `value`. The format of
-this field will vary depending on the way the language in question
-represents errors.
+message should include an `ex` field instead of `value`, and its
+`status` should include `eval-error`. The format of the `ex` field
+will vary depending on the way the language in question represents
+errors.
 
 ```js
 // client -> server
@@ -155,7 +156,7 @@ represents errors.
 // client <- server
 {"id": "b9616f31-9fbd-4a76-b7d6-ab98eb9f7641",
  "ex": "connection refused",
- "status": ["done"]}
+ "status": ["eval-error", "done"]}
 ```
 
 The `eval` message may also contain a `file` field indicating that the
@@ -218,6 +219,8 @@ send what it receives using the `stdin` operation.
 Clients and servers may choose to support these if they make sense. If a server
 receives a request with an `op` it does not recognize, it must reply
 with a message whose `status` contains `unknown-op` along with `done`.
+That message should also include the `op` it received, so clients can
+tell the user which op isn't supported.
 
 ### `interrupt` op
 
@@ -389,7 +392,9 @@ included as the `session` for all subsequent requests:
 
 ### `close` op
 
-A client may send a `close` op to terminate the session.
+A client may send a `close` op to terminate the session. The response
+should have `session-closed` in its `status`, so the client knows the
+session is really gone.
 
 ```js
 // client -> server
@@ -400,7 +405,7 @@ A client may send a `close` op to terminate the session.
 // client <- server
 {"session": "afd3c88e-707f-4169-a265-892f29476333",
  "id": "5da7c522-24eb-4a77-a133-63f08c4bdc1e",
- "status": ["done"]}
+ "status": ["session-closed", "done"]}
 ```
 
 The server may close the socket after the reply is sent, if the
@@ -411,6 +416,27 @@ same effect.
 If the server was communicating over stdio, it may exit if no other
 sessions are active, but if it was communicating over a socket, it
 should remain running to accept sessions from other clients.
+
+## Status values
+
+These are the status values used in this document. Servers may send
+others too (e.g. for extension ops), so clients should ignore the ones
+they don't know.
+
+| Status | Meaning |
+|---|---|
+| `done` | The request is complete (see the protocol description). |
+| `need-input` | Evaluated code is waiting for input (see the `stdin` op). It should be sent in a message of its own and never together with `done`, as some clients only recognize a `status` of exactly `["need-input"]`. |
+| `eval-error` | Evaluated code raised an error, described in `ex` (see the `eval` op). |
+| `no-code` | An `eval` request has no `code`. |
+| `namespace-not-found` | An `eval` request asked for an `ns` that doesn't exist. Servers shouldn't evaluate the code in some other namespace instead. |
+| `unknown-op` | The server doesn't support the requested `op` (see the optional operations). |
+| `unknown-session` | A request refers to a `session` the server doesn't know about, for instance one that has been closed. |
+| `session-closed` | A `close` request has closed its session. |
+| `interrupted` | A request was stopped by an `interrupt` request. |
+| `session-idle` | An `interrupt` request found nothing to interrupt. |
+| `interrupt-id-mismatch` | The `interrupt-id` of an `interrupt` request doesn't match the request that's running. |
+| `server-error` | Something went wrong in the server itself (see the protocol description). The request still has to get its `done`. |
 
 ## Extension operations
 
