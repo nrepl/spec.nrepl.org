@@ -222,30 +222,44 @@ with a message whose `status` contains `unknown-op` along with `done`.
 ### `interrupt` op
 
 For servers that support interrupting running code, the client may
-send an `interrupt` op. Requests may optionally contain an
-`interrupt-id` field which corresponds to the `id` of the request to
-be interrupted. If this is omitted, it interrupts the most recent
-request of the current session.
+send an `interrupt` op. Like any other request it has an `id` of its
+own, and it may contain an `interrupt-id` field with the `id` of the
+request to be interrupted. If this is omitted, it interrupts whatever
+is running in the request's `session`.
 
 ```js
 // client -> server
 {"op": "eval",
  "id": "71629c7e-6c73-4dea-85f8-102d4b64c07f",
+ "session": "afd3c88e-707f-4169-a265-892f29476333",
  "code": "calculate_matrix()"}
 
 // client -> server
 {"op": "interrupt",
- "id": "71629c7e-6c73-4dea-85f8-102d4b64c07f"}
+ "id": "9b4e2c1d-8a7f-4e3b-b5d6-0c1a2f3e4d5c",
+ "session": "afd3c88e-707f-4169-a265-892f29476333",
+ "interrupt-id": "71629c7e-6c73-4dea-85f8-102d4b64c07f"}
 ```
 
-The reply to this request should be a message with statuses
-`interrupted` and `done` both:
+The interrupted request finishes with `interrupted` and `done` in its
+`status`, while the `interrupt` request itself just gets `done`:
 
 ```js
 // client <- server
 {"id": "71629c7e-6c73-4dea-85f8-102d4b64c07f",
+ "session": "afd3c88e-707f-4169-a265-892f29476333",
  "status": ["interrupted", "done"]}
+
+// client <- server
+{"id": "9b4e2c1d-8a7f-4e3b-b5d6-0c1a2f3e4d5c",
+ "session": "afd3c88e-707f-4169-a265-892f29476333",
+ "status": ["done"]}
 ```
+
+If there's nothing to interrupt, the response to the `interrupt`
+request should have `session-idle` in its `status`. If the
+`interrupt-id` doesn't match the request that's running, it should
+have `interrupt-id-mismatch` instead, and nothing gets interrupted.
 
 ### `lookup` op
 
