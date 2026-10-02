@@ -263,7 +263,8 @@ information for functions and other values, the client may send a
 The response will vary from one server to another due to language
 variation, but all data should be under `info`. If documentation is
 available, it should be under `doc`, and argument lists for functions
-should be under `arglist`.
+should be under `arglists-str`, as a string written the way the
+language itself would show them.
 
 If the definition of the requested value can be traced to a file, then
 a `file` and `line` field should be included. A `column` may also be
@@ -279,7 +280,7 @@ directory in which the server was started.
 // client <- server
 {"id": "d30f8bb9-4e6e-48a8-b0f8-58adf5b353a7",
  "info": {"doc": "Reloads the configuration.",
-          "arglist": ["path", "restart"],
+          "arglists-str": "(path, restart)",
           "file": "src/mymodule.lua",
           "line": 27,
           "column": 2,
@@ -287,7 +288,12 @@ directory in which the server was started.
  "status": ["done"]}
 ```
 
-If the `sym` is not found, then the `info` field should be omitted.
+If the `sym` is not found, then the `info` field should be omitted and
+the `status` should include `no-info`.
+
+Compatibility note: earlier drafts of this document used an `arglist`
+field, but existing servers and clients (e.g. CIDER, Calva, Conjure and
+neat) use `arglists-str`.
 
 ### `load-file` op
 
