@@ -43,7 +43,20 @@ contains the string `done`. Requests may remain active for a long time
 before completing, so the responses should be handled asynchronously.
 
 Requests should have an `id` field, and responses to that request
-should also include the same `id`.
+should also include the same `id`. Likewise, responses to a request
+that has a `session` field (see the `clone` op) should include the
+same `session`, as clients may use it to tell which session a
+response belongs to.
+
+A request gets exactly one response with `done` in its `status`, and
+apart from output (see `out` and `err` in the `eval` op) nothing else
+should follow it. That response may carry other fields too, for
+example a `value`, so clients shouldn't assume that `done` arrives in
+a message of its own.
+
+The `status` field is a list of strings, but their order doesn't
+matter, so clients should check whether a status is present rather
+than compare the whole list.
 
 In this document, the examples use UUID `id` strings, but the only
 requirement is that they are strings that are unique to the life of
@@ -203,8 +216,12 @@ send what it receives using the `stdin` operation.
 
 // client -> server
 {"op": "stdin",
- "id": "78f78353-c185-4211-a868-b19eaa85e054",
+ "id": "2c2b1a3e-5f4b-4a54-9c41-1d3f0b7c8e21",
  "stdin": "gorkon"}
+
+// client <- server
+{"id": "2c2b1a3e-5f4b-4a54-9c41-1d3f0b7c8e21",
+ "status": ["done"]}
 
 // client <- server
 {"id": "78f78353-c185-4211-a868-b19eaa85e054",
